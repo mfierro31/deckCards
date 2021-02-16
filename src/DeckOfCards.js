@@ -11,6 +11,9 @@ const DeckOfCards = () => {
 
   const deckId = useRef();
   const intervalId = useRef();
+  // need to keep track of initial render for 2nd useEffect.  We don't want our 2nd useEffect to run on initial render.
+  // we only want it to run when hasDrawn changes.
+  const initialRender = useRef(true);
 
   // Starting a new deck - happens just once, after component first renders
   useEffect(() => {
@@ -25,47 +28,45 @@ const DeckOfCards = () => {
 
   // logic for drawing from a deck of cards
   async function draw () {
-    const res = await axios.get(`https://deckofcardsapi.com/api/deck/${deckId.current}/draw`);
-    const newCard = res.data.cards[0];
-    newCard.id = uuid();
-    newCard.rotation = `${Math.floor(Math.random() * 361)}deg`;
+    // if no more cards in the deck, we want to clear the interval and show alert
+    if (remainingCards === 0) {
+      clearInterval(intervalId.current);
+      alert('Error: no more cards in the deck!');
+    } else {
+      const res = await axios.get(`https://deckofcardsapi.com/api/deck/${deckId.current}/draw`);
+      const newCard = res.data.cards[0];
+      newCard.id = uuid();
+      newCard.rotation = `${Math.floor(Math.random() * 361)}deg`;
 
-    setDrawnCards(drawnCards => [...drawnCards, { id: newCard.id, image: newCard.image, rotation: newCard.rotation }]);
-    setRemainingCards(res.data.remaining);
+      setDrawnCards(drawnCards => [...drawnCards, { id: newCard.id, image: newCard.image, rotation: newCard.rotation }]);
+      setRemainingCards(res.data.remaining);
+    }
   }
 
+  // attempt to start interval - draw a card from deck of cards API every 1 second.  
   useEffect(() => {
-    if (hasDrawn === false) {
-      intervalId.current = setInterval(() => draw(), 1000);
-    } else if (hasDrawn === true || remainingCards === 0) {
-      clearInterval(intervalId.current);
+    // don't want this to run on initial render, only when hasDrawn changes.
+    if (initialRender.current === true) {
+      initialRender.current = false;
+    } else {
+      if (hasDrawn === true) {
+        intervalId.current = setInterval(() => draw(), 1000);
+      } else {
+        clearInterval(intervalId.current);
+      }
+  
+      return () => clearInterval(intervalId.current);
     }
-
-    return () => clearInterval(intervalId.current);
   }, [hasDrawn]);
-
-  // const startDrawing = () => {
-  //   setHasDrawn(!hasDrawn);
-  //   intervalId.current = setInterval(() => draw(), 1000);
-  // };
-
-  // const stopDrawing = () => {
-  //   setHasDrawn(!hasDrawn);
-  //   clearInterval(intervalId.current);
-  // };
 
   return (
     <div className="DeckOfCards">
-      {
-        remainingCards !== null && remainingCards === 0 ? 
-        alert('Error: no cards remaining!') : 
-        <button 
-          className="DeckOfCards-btn" 
-          onClick={() => setHasDrawn(!hasDrawn)}
-        >
-          {hasDrawn ? 'Stop drawing' : 'Start drawing'}
-        </button>
-      }
+      <button 
+        className="DeckOfCards-btn" 
+        onClick={() => setHasDrawn(!hasDrawn)}
+      >
+        {hasDrawn ? 'Stop drawing' : 'Start drawing'}
+      </button>
       {drawnCards.map(card => <Card key={card.id} img={card.image} rotation={card.rotation} />)}
     </div>
   );
