@@ -1,0 +1,7 @@
+.Card {
+  /* Best way to center an absolutely positioned element */
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin: 50px auto;
+}
